@@ -140,7 +140,12 @@ h2{display:flex;align-items:center;gap:1rem;margin:0 0 2.4rem;font-size:.8rem;fo
 .land-ring{position:absolute;z-index:4;pointer-events:none;border-radius:50%;border:2.5px solid var(--c);box-shadow:0 0 18px var(--c),inset 0 0 14px var(--c);opacity:var(--o,.6);transform:translate(-50%,-50%) scale(.3);animation:lring .6s cubic-bezier(.2,.7,.3,1) forwards}
 @keyframes lring{to{transform:translate(-50%,-50%) scale(1.9);opacity:0;border-width:.5px}}
 .arena.nofx canvas,.arena.nofx .tl,.arena.nofx .pit-back,.arena.nofx .pit-front{display:none}
-@media (max-width:620px){.arena{height:510px}.tl{font-size:.74rem;padding:.2rem .58rem}}
+@media (max-width:620px){
+  .arena{height:540px}
+  .tl{font-size:.84rem;padding:.26rem .75rem}
+  .btnrow{flex-direction:column;align-items:stretch;width:100%;max-width:320px;margin:0 auto;gap:.8rem}
+  .btnrow .mag{width:100%;justify-content:center;text-align:center;padding:.85rem 1.4rem;font-size:.95rem;white-space:nowrap;box-sizing:border-box}
+}
 footer{position:relative;z-index:1;display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;border-top:1px solid var(--line);padding:1.5rem var(--gx);color:var(--frost);font-size:.9rem;background:var(--ink)}
 #cur,#ring{position:fixed;top:0;left:0;z-index:60;pointer-events:none;border-radius:50%;display:none}
 #cur{width:8px;height:8px;margin:-4px;background:var(--ice)}
@@ -208,12 +213,18 @@ header::before,header::after{display:none}
 @keyframes tph{0%,100%{transform:translate(0,10px) scale(1)}30%{transform:translate(0,0) scale(.88)}45%{transform:translate(0,0) scale(.88)}}
 .tp-lab,.dp{white-space:nowrap;font-weight:800;font-size:.95rem;letter-spacing:.01em;color:var(--ink);background:linear-gradient(135deg,#bfeaff,var(--glow));padding:.5rem 1.1rem;border-radius:99px;box-shadow:0 8px 30px -6px rgba(92,200,255,.7)}
 .tp-lab{transform:translate(-50%,56px)}
-.dp{left:50%;bottom:3.6rem;transform:translateX(-50%);display:flex;align-items:center;gap:.7rem;z-index:3}
+.dp{left:50%;bottom:5rem;transform:translateX(-50%);display:flex;align-items:center;gap:.7rem;z-index:3}
 .dp i{font-style:normal;display:inline-block;animation:dpa 1.2s ease-in-out infinite}
 .dp i:last-child{animation-direction:reverse}
 @keyframes dpa{0%,100%{transform:translateX(-3px)}50%{transform:translateX(3px)}}
 @media (prefers-reduced-motion:reduce){.tp-ring,.tp-hand,.dp i,.lc.prompt .hint .hl{animation:none}.tp-ring{opacity:.6}}
-@media (max-width:860px){#lc{height:min(80svh,760px);min-height:540px}.lc{position:relative}}
+@media (max-width:860px){
+  #lc{height:clamp(400px,58svh,520px);min-height:400px}
+  .lc{position:relative;margin-bottom:1.5rem}
+  .dp{bottom:4.6rem}
+  .lc .hint{margin:1.4rem auto .6rem;position:relative;z-index:4;font-size:.92rem;padding:0 1rem;text-align:center}
+  #seg{margin-bottom:1.4rem}
+}
 
 /* ===== Selected work v2 ===== */
 .proj.pj{align-items:center}
@@ -1110,25 +1121,45 @@ function Lanyard(cv){
   function finish(cancel){
     if(!press)return;
     const was=drag;
-    if(was){PH.release(H);blip(200,.22,.1);}
-    else if(!cancel){flipped=!flipped;blip(520,.2,.09);}
+    const dur=performance.now()-press.t;
+    const dist=Math.hypot((press.lastX||press.x)-press.x,(press.lastY||press.y)-press.y);
+    if(!cancel&&dur<260&&dist<12){
+      if(was)PH.release(H);
+      flipped=!flipped;
+      blip(520,.2,.09);
+    }else if(was){
+      PH.release(H);
+      blip(200,.22,.1);
+    }
     drag=false;
     try{if(pid!==null&&cv.hasPointerCapture(pid))cv.releasePointerCapture(pid);}catch(_){}
     press=null;pid=null;
     if(was||!cancel)LCUI.use();
   }
+  cv.addEventListener('touchstart',e=>{
+    const t=e.touches[0];if(!t)return;
+    ray({clientX:t.clientX,clientY:t.clientY});
+    if(rc.intersectObjects([fr,bk]).length){
+      if(e.cancelable)e.preventDefault();
+    }
+  },{passive:false});
   cv.addEventListener('pointerdown',e=>{
     if(e.pointerType==='mouse'&&e.button!==0)return;
     if(press)finish(true);
     ray(e);if(!rc.intersectObjects([fr,bk]).length)return;
-    press={x:e.clientX,y:e.clientY,t:performance.now(),e};pid=e.pointerId;
+    if(e.cancelable)e.preventDefault();
+    press={x:e.clientX,y:e.clientY,lastX:e.clientX,lastY:e.clientY,t:performance.now(),e};pid=e.pointerId;
     try{cv.setPointerCapture(e.pointerId);}catch(_){}
-    if(e.pointerType==='mouse')e.preventDefault();
+    grab(e);
   });
   cv.addEventListener('pointermove',e=>{
     if(!press||e.pointerId!==pid)return;
     if(e.pointerType==='mouse'&&e.buttons===0){finish(true);return;}
-    press.e=e;if(!drag&&Math.hypot(e.clientX-press.x,e.clientY-press.y)>7)grab(e);if(drag)aim(e);
+    press.e=e;
+    press.lastX=e.clientX;
+    press.lastY=e.clientY;
+    if(!drag)grab(e);
+    aim(e);
   });
   const endUp=e=>{if(press&&e.pointerId===pid)finish(false);},endCx=e=>{if(press&&e.pointerId===pid)finish(true);};
   cv.addEventListener('pointerup',endUp);addEventListener('pointerup',endUp);
@@ -1364,8 +1395,10 @@ b.onclick=e=>{const s=e.target.dataset.s;if(s===undefined)return;if(s==='1')star
 document.querySelectorAll('.cv').forEach(a=>{a.href=CV_FILE;});
 /* Contact */
 const mag=$('#copy');
-mag.addEventListener('mousemove',e=>{const r=mag.getBoundingClientRect();mag.style.transform='translate('+(e.clientX-r.left-r.width/2)*.25+'px,'+(e.clientY-r.top-r.height/2)*.35+'px)';});
-mag.addEventListener('mouseleave',()=>{mag.style.transform='';});
+if(window.matchMedia('(hover: hover) and (pointer: fine)').matches){
+  mag.addEventListener('mousemove',e=>{const r=mag.getBoundingClientRect();mag.style.transform='translate('+(e.clientX-r.left-r.width/2)*.25+'px,'+(e.clientY-r.top-r.height/2)*.35+'px)';});
+  mag.addEventListener('mouseleave',()=>{mag.style.transform='';});
+}
 mag.addEventListener('click',()=>{const m='faysarukattil@gmail.com';(navigator.clipboard?navigator.clipboard.writeText(m):Promise.reject()).catch(()=>{}).finally(()=>{mag.textContent='Copied';blip(900,.15,.09);setTimeout(()=>mag.textContent=m,1600);});});
 
 /* Contact: Glass-walled ball pit with full 360° throw/tumble physics, lively cursor jump, ball tap-to-bounce, zero-stuck hold & drag, soft-matte palette & authentic Gmail icon */
@@ -1598,8 +1631,9 @@ mag.addEventListener('click',()=>{const m='faysarukattil@gmail.com';(navigator.c
     const h3H=h3El?h3El.offsetHeight:h*.26;
     const pTop=Math.round(clamp(h3H+28,h*.28,h*.38));
     const pBot=h-14,pH=pBot-pTop;
-    const size=Math.round(clamp(pW*.115,74,122));
-    const bR=clamp(Math.sqrt(pW*pH)*.0275,10,19.5);
+    const isMob=w<640;
+    const size=Math.round(clamp(pW*(isMob?.22:.115),isMob?94:74,122));
+    const bR=clamp(Math.sqrt(pW*pH)*(isMob?.038:.0275),isMob?14:10,19.5);
 
     if(w===W&&h===H&&size===SZ&&Math.abs(bR-baseR)<.2)return;
     if(size!==SZ){
@@ -2169,7 +2203,7 @@ const B=els.map(el=>{const p=document.createElementNS(NS,'path');svg.appendChild
   return {el,path:p,name:el.dataset.n,note:el.dataset.note,cat:el.dataset.cat,col:el.style.getPropertyValue('--c').trim(),li:items.find(l=>l.dataset.for===el.dataset.n),
     x:0,y:0,vx:0,vy:0,ang:0,av:0,tx:0,ty:0,tvx:0,tvy:0,s:0,sv:0,alive:false,popped:false,seed:Math.random()*100};});
 let W=600,H=560,bd=110,vis=false,running=false,last=0,seen=false;
-function layout(){W=sky.clientWidth||W;H=sky.clientHeight||H;bd=clamp(W*.112,70,124);sky.style.setProperty('--bd',bd.toFixed(1)+'px');
+function layout(){W=sky.clientWidth||W;H=sky.clientHeight||H;bd=clamp(W*(W<640?.22:.112),W<640?86:70,124);sky.style.setProperty('--bd',bd.toFixed(1)+'px');
   B.forEach(b=>{b.x=clamp(b.x,bd*.5,W-bd*.5);});}
 /* ---------- sound (follows the page's own speaker switch when it exists) ---------- */
 let own=null;
